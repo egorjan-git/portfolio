@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MSK Street Art</title>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script> 
+  <script id="ymapsScript" src="https://api-maps.yandex.ru/2.1/?apikey=f2965824-94af-415c-90ca-19aecf89f23a&lang=ru_RU"></script>
+
+  <style>
+    :root{
+  --bg:#ffffff;
+  --text:#111111;
+  --hint:#666666;
+  --card:#ffffff;
+  --border:#eeeeee;
+
+  --btn:#111111;
+  --btnText:#ffffff;
+
+  --btnSecondary:#f2f2f2;
+  --btnSecondaryText:#111111;
+  --btnSecondaryBorder:#dddddd;
+}
+
+/* применяем переменные */
+body{
+  background: var(--bg);
+  color: var(--text);
+}
+
+.card{
+  background: var(--card);
+  border-color: var(--border);
+}
+
+.tabs{
+  background: var(--card);
+  border-bottom-color: var(--border);
+}
+
+.tab{
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--btnSecondaryBorder);
+}
+.tab.active{ border-color: var(--text); }
+
+.hint, .muted{ color: var(--hint); }
+
+input, select, textarea{
+  background: var(--card);
+  color: var(--text);
+  border-color: var(--btnSecondaryBorder);
+}
+
+button{
+  background: var(--btn);
+  color: var(--btnText);
+}
+
+button.secondary{
+  background: var(--btnSecondary);
+  color: var(--btnSecondaryText);
+  border: 1px solid var(--btnSecondaryBorder);
+}
+    body { margin:0; font-family:-apple-system,system-ui,Arial; }
+    .tabs { display:flex; gap:8px; padding:10px; position:sticky; top:0; background:#fff; border-bottom:1px solid #eee; z-index:5; }
+    .tab { flex:1; padding:10px; border:1px solid #ddd; border-radius:10px; text-align:center; cursor:pointer; user-select:none; }
+    .tab.active { border-color:#000; }
+    .view { display:none; padding:12px 10px 18px; }
+    .view.active { display:block; }
+
+    #map { width:100%; height:70vh; border-radius:12px; overflow:hidden; }
+
+    .card { border:1px solid #eee; border-radius:14px; padding:12px; }
+    .title { font-size:16px; font-weight:600; margin:0 0 10px; }
+    .hint { color:#666; font-size:12px; margin-top:6px; }
+    .row { display:flex; gap:8px; align-items:center; }
+    .row > * { flex:1; }
+
+    input, select, textarea, button {
+      width:100%; padding:10px; border-radius:10px; border:1px solid #ddd; box-sizing:border-box;
+      font-size:14px;
+    }
+    textarea { min-height:90px; resize:vertical; }
+    button { cursor:pointer; background:#111; color:#fff; border:none; }
+    button.secondary { background:#f2f2f2; color:#111; border:1px solid #ddd; }
+
+    .actions { display:flex; gap:8px; margin-top:12px; }
+    .actions button { flex:1; }
+
+    .pill { display:inline-flex; gap:6px; flex-wrap:wrap; }
+    .pill button {
+      width:auto; padding:8px 10px; border-radius:999px;
+      background:#f2f2f2; color:#111; border:1px solid #ddd;
+    }
+    .pill button.active { background:#111; color:#fff; border-color:#111; }
+
+    .status { margin-top:10px; font-size:13px; color:#333; }
+
+    .preview { margin-top:12px; }
+    .preview img { width:100%; border-radius:12px; border:1px solid #eee; }
+    .preview video { width:100%; border-radius:12px; border:1px solid #eee; margin-top:10px; }
+
+    .list { display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+    .item { border:1px solid #eee; border-radius:14px; padding:12px; }
+    .item h3 { margin:0 0 6px; font-size:15px; }
+    .meta { font-size:12px; color:#666; margin-bottom:8px; }
+    .item img, .item video { width:100%; border-radius:12px; border:1px solid #eee; }
+    .item video { margin-top:10px; }
+  
+  /* multi-step: показываем только активный экран */
+  .step{display:none;}
+  .step.active{display:block;}
+</style>
+</head>
+
+<body>
+
+<div class="tabs">
+  <div class="tab active" id="tabAdd">Добавить</div>
+  <div class="tab" id="tabMap">Карта</div>
+  <div class="tab" id="tabMine">Мои заявки</div>
+</div>
+
+<!-- ADD -->
+<div id="viewAdd" class="view">
+  <div class="card">
+    <h2>Добавить объект</h2>
+    <p class="muted">Заполните данные и отправьте заявку.</p>
+
+    <div class="steps">
+      <div class="step active" data-step="1">
+        <div class="field">
+          <label>Является ли пользователь автором работы, которую хочет указать?</label>
+          <div class="row">
+            <button type="button" class="btn" id="btnIsAuthorYes">Да</button>
+            <button type="button" class="btn secondary" id="btnIsAuthorNo">Нет</button>
+          </div>
+          <div class="hint" id="tgHint" style="display:none;margin-top:10px;">
+            ⚠️ Добавление доступно только при открытии через Telegram (кнопка «Открыть карту (WebApp)»).
+          </div>
+        </div>
+        <div class="row">
+          <button type="button" class="btn" id="next1" disabled>Далее</button>
+        </div>
+      </div>
+
+      <div class="step" data-step="2">
+        <div id="blockNotAuthor" style="display:none;">
+          <div class="field">
+            <label>Вы знаете творческое объединение или художника объекта?</label>
+            <div class="row">
+              <button type="button" class="btn" id="btnKnowYes">Да</button>
+              <button type="button" class="btn secondary" id="btnKnowNo">Нет</button>
+            </div>
+          </div>
+          <div class="field" id="fieldArtistName" style="display:none;">
+            <label>Если да, то укажите название / псевдоним / имя</label>
+            <input id="artistName" type="text" placeholder="Например: Zoom / Aesthetics Group" />
+          </div>
+        </div>
+
+        <div id="blockAuthor" style="display:none;">
+          <div class="field">
+            <label>Укажите, как можно назвать вас или творческое объединение, в котором вы состоите</label>
+            <input id="authorName" type="text" placeholder="Имя / псевдоним / объединение" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Адрес расположения объекта (насколько можете)</label>
+          <input id="okrug" type="text" placeholder="Административный округ (например: ЦАО)" />
+          <input id="street" type="text" placeholder="Улица" style="margin-top:8px;" />
+          <input id="house" type="text" placeholder="Номер дома" style="margin-top:8px;" />
+        </div>
+
+        <div class="row">
+          <button type="button" class="btn secondary" id="back2">Назад</button>
+          <button type="button" class="btn" id="next2">Далее</button>
+        </div>
+      </div>
+
+      <div class="step" data-step="3">
+        <div class="field">
+          <label>Медиум работы</label>
+          <select id="medium">
+            <option value="" selected disabled>Выберите...</option>
+            <option value="настенная роспись: мурал">настенная роспись: мурал</option>
+            <option value="настенная роспись: граффити">настенная роспись: граффити</option>
+            <option value="мозаика">мозаика</option>
+            <option value="рельеф">рельеф</option>
+            <option value="стикер">стикер</option>
+            <option value="инсталляция">инсталляция</option>
+            <option value="другое">другое</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Геопозиция (можно оставить пустым и выбрать кликом на карте)</label>
+          <div class="row">
+            <input id="lat" type="text" placeholder="lat" />
+            <input id="lon" type="text" placeholder="lon" />
+          </div>
+          <div class="hint">На карте откройте вкладку «Карта» и нажмите на нужную точку — координаты подставятся.</div>
+        </div>
+
+        <div class="field">
+          <label>Прикрепите фотографию объекта</label>
+          <input id="photo" type="file" accept="image/*" />
+        </div>
+
+        <div class="field">
+          <label>Укажите дату создания фотографии</label>
+          <input id="photoDate" type="date" />
+        </div>
+
+        <div class="field">
+          <label>Объект еще существует?</label>
+          <select id="exists">
+            <option value="" selected disabled>Выберите...</option>
+            <option value="да">да</option>
+            <option value="нет">нет</option>
+            <option value="не знаю">не знаю</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <button type="button" class="btn secondary" id="back3">Назад</button>
+          <button type="button" class="btn" id="next3">Далее</button>
+        </div>
+      </div>
+
+      <div class="step" data-step="4">
+        <div id="authorOnly" style="display:none;">
+          <div class="field">
+            <label>Какие материалы вы использовали</label>
+            <input id="materials" type="text" placeholder="Например: акрил, аэрозоль, штукатурка..." />
+          </div>
+          <div class="field">
+            <label>Сколько времени заняло производство работы</label>
+            <input id="prodTime" type="text" placeholder="Например: 3 дня / 12 часов" />
+          </div>
+          <div class="field">
+            <label>Этапы работы (фото или видео, 1 файл)</label>
+            <input id="stagesFile" type="file" accept="image/*,video/*" />
+            <div class="hint">Если этапов много — можно загрузить одно видео/коллаж. (Сервер сейчас принимает один файл.)</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Описание (необязательно)</label>
+          <textarea id="description" rows="4" placeholder="Коротко про объект, контекст, что изображено..."></textarea>
+        </div>
+
+        <div class="row">
+          <button type="button" class="btn secondary" id="back4">Назад</button>
+          <button type="button" class="btn" id="next4">Далее</button>
+        </div>
+      </div>
+
+      <div class="step" data-step="5">
+        <div class="field">
+          <label>Какое у вас впечатление после взаимодействия с ботом?</label>
+          <textarea id="feedback" rows="4" placeholder="Что понравилось / что неудобно / что улучшить..."></textarea>
+        </div>
+
+        <div class="row">
+          <button type="button" class="btn secondary" id="back5">Назад</button>
+          <button type="button" class="btn" id="next5">Далее</button>
+        </div>
+      </div>
+
+      <div class="step" data-step="6">
+        <div class="field">
+          <label>Проверьте перед отправкой</label>
+          <div class="review" id="reviewBox"></div>
+        </div>
+
+        <div class="row">
+          <button type="button" class="btn secondary" id="back6">Назад</button>
+          <button type="button" class="btn" id="submitBtn">Отправить</button>
+        </div>
+
+        <div class="hint" id="submitHint" style="margin-top:10px;"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="view" id="viewMap">
+  <div class="card" style="margin-bottom:10px;">
+    <div class="row">
+      <input id="addrQuery" placeholder="Введите адрес, например: Шоссейная 35, Москва" />
+      <button type="button" id="btnAddrFind" style="width:auto; padding:10px 14px;">Найти</button>
+    </div>
+    <div class="hint">Поиск делает запрос на наш сервер (HTTP Геокодер). Координаты подставятся в “Добавить”.</div>
+  </div>
+
+  <div id="map"></div>
+  <div class="hint" style="padding:10px;">
+    Клик по карте: подставляет координаты в “Добавить”.
+  </div>
+</div>
+
+<!-- MINE -->
+<div class="view" id="viewMine">
+  <div class="card">
+    <div class="title" style="margin-bottom:8px;">Мои заявки</div>
+    <div class="actions" style="margin-top:0;">
+      <button class="secondary" type="button" id="btnRefreshMine">Обновить</button>
+    </div>
+    <div class="status" id="mineStatus"></div>
+    <div class="list" id="mineList"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  if (tg) {
+    try { tg.expand(); } catch(e) {}
+  }
+
+  // 👇 ВСТАВЬ ЭТОТ БЛОК СЮДА
+  function applyTelegramTheme() {
+    if (!tg) return;
+    const p = tg.themeParams || {};
+
+    const set = (name, val) => {
+      if (val) document.documentElement.style.setProperty(name, val);
+    };
+
+    set("--bg", p.bg_color);
+    set("--text", p.text_color);
+    set("--hint", p.hint_color);
+    set("--card", p.secondary_bg_color);
+    set("--border", p.hint_color);
+
+    set("--btn", p.button_color);
+    set("--btnText", p.button_text_color);
+
+    set("--btnSecondary", p.secondary_bg_color);
+    set("--btnSecondaryText", p.text_color);
+    set("--btnSecondaryBorder", p.hint_color);
+
+    try { tg.setBackgroundColor(p.bg_color || "#ffffff"); } catch(e) {}
+    try { tg.setHeaderColor(p.bg_color || "#ffffff"); } catch(e) {}
+  }
+
+  applyTelegramTheme();
+  if (tg) tg.onEvent("themeChanged", applyTelegramTheme);
+  // 👆 КОНЕЦ ВСТАВКИ
+
+  const hasTelegram = true;
+
+  // ---------- Tabs ----------
+  const tabs = {
+    add: document.getElementById("tabAdd"),
+    map: document.getElementById("tabMap"),
+    mine: document.getElementById("tabMine"),
+  };
+  const views = {
+    add: document.getElementById("viewAdd"),
+    map: document.getElementById("viewMap"),
+    mine: document.getElementById("viewMine"),
+  };
+
+  function setTab(name) {
+    Object.keys(tabs).forEach(k => tabs[k].classList.toggle("active", k === name));
+    Object.keys(views).forEach(k => views[k].classList.toggle("active", k === name));
+    if (name === "map") ensureMap();
+    if (name === "mine") loadMine();
+  }
+
+  tabs.add?.addEventListener("click", () => setTab("add"));
+  tabs.map?.addEventListener("click", () => setTab("map"));
+  tabs.mine?.addEventListener("click", () => setTab("mine"));
+
+  // ---------- Stepper ----------
+  const steps = Array.from(document.querySelectorAll('#viewAdd .step'));
+  let step = 1;
+  function showStep(n) {
+    step = n;
+    steps.forEach(s => s.classList.toggle("active", Number(s.dataset.step) === n));
+    if (n === 2) updateStep2Visibility();
+    if (n === 6) renderReview();
+  }
+
+  // ---------- State ----------
+  const state = {
+    isAuthor: null,
+    knowArtist: null,
+  };
+
+  // ---------- Elements ----------
+  const tgHint = document.getElementById("tgHint");
+  const next1 = document.getElementById("next1");
+
+  const btnIsAuthorYes = document.getElementById("btnIsAuthorYes");
+  const btnIsAuthorNo  = document.getElementById("btnIsAuthorNo");
+
+  const blockAuthor = document.getElementById("blockAuthor");
+  const blockNotAuthor = document.getElementById("blockNotAuthor");
+  const authorOnly = document.getElementById("authorOnly");
+
+  const btnKnowYes = document.getElementById("btnKnowYes");
+  const btnKnowNo  = document.getElementById("btnKnowNo");
+  const fieldArtistName = document.getElementById("fieldArtistName");
+
+  function setButtonPair(yesBtn, noBtn, value) {
+    if (!yesBtn || !noBtn) return;
+    yesBtn.classList.toggle("secondary", value !== true);
+    noBtn.classList.toggle("secondary", value !== false);
+  }
+
+  tgHint.style.display = "none"; // скрываем предупреждение всегда
+
+ function validateStep1() {
+  next1.disabled = !((state.isAuthor === true || state.isAuthor === false));
+}
+
+  // default choice (variant 1): preselect 'Да'
+  state.isAuthor = true;
+  setButtonPair(btnIsAuthorYes, btnIsAuthorNo, true);
+  validateStep1();
+
+  btnIsAuthorYes?.addEventListener("click", () => {
+    state.isAuthor = true;
+    setButtonPair(btnIsAuthorYes, btnIsAuthorNo, true);
+    validateStep1();
+  });
+  btnIsAuthorNo?.addEventListener("click", () => {
+    state.isAuthor = false;
+    setButtonPair(btnIsAuthorYes, btnIsAuthorNo, false);
+    validateStep1();
+  });
+
+
+
+
+
+  next1?.addEventListener("click", () => {
+    // show proper blocks
+    blockAuthor.style.display = state.isAuthor ? "" : "none";
+    blockNotAuthor.style.display = !state.isAuthor ? "" : "none";
+    authorOnly.style.display = state.isAuthor ? "" : "none";
+    showStep(2);
+  });
+
+  document.getElementById("back2")?.addEventListener("click", () => showStep(1));
+  document.getElementById("back3")?.addEventListener("click", () => showStep(2));
+  document.getElementById("back4")?.addEventListener("click", () => showStep(3));
+  document.getElementById("back5")?.addEventListener("click", () => showStep(4));
+  document.getElementById("back6")?.addEventListener("click", () => showStep(5));
+
+  // Know artist
+  btnKnowYes?.addEventListener("click", () => {
+    state.knowArtist = true;
+    setButtonPair(btnKnowYes, btnKnowNo, true);
+    fieldArtistName.style.display = "";
+  });
+  btnKnowNo?.addEventListener("click", () => {
+    state.knowArtist = false;
+    setButtonPair(btnKnowYes, btnKnowNo, false);
+    fieldArtistName.style.display = "none";
+    const el = document.getElementById("artistName");
+    if (el) el.value = "";
+  });
+
+  // Next buttons
+  function val(id){ const el=document.getElementById(id); return el ? (el.value || "").trim() : ""; }
+
+  document.getElementById("next2")?.addEventListener("click", () => {
+    // minimal validation: address
+    const street = val("street");
+    const house = val("house");
+    if (!street || !house) { submitHint.textContent = "Укажите улицу и номер дома (насколько можете)."; return; }
+    showStep(3);
+  });
+
+  document.getElementById("next3")?.addEventListener("click", () => {
+    if (!val("medium")) { submitHint.textContent = "Выберите медиум."; return; }
+    const photo = document.getElementById("photo");
+    if (!photo || !photo.files || photo.files.length === 0) { submitHint.textContent = "Прикрепите фотографию объекта."; return; }
+    if (!val("photoDate")) { submitHint.textContent = "Укажите дату создания фотографии."; return; }
+    if (!val("exists")) { submitHint.textContent = "Укажите, существует ли объект."; return; }
+    showStep(4);
+  });
+
+  document.getElementById("next4")?.addEventListener("click", () => showStep(5));
+  document.getElementById("next5")?.addEventListener("click", () => showStep(6));
+
+  // Review
+  function renderReview() {
+    const box = document.getElementById("reviewBox");
+    if (!box) return;
+
+    const isAuthor = state.isAuthor === true;
+    const okrug = val("okrug");
+    const street = val("street");
+    const house = val("house");
+    const medium = val("medium");
+    const exists = val("exists");
+    const photoDate = val("photoDate");
+
+    const who = isAuthor ? val("authorName") : (val("artistName") || "неизвестно");
+    const know = isAuthor ? "" : (state.knowArtist === true ? "да" : (state.knowArtist === false ? "нет" : "не указано"));
+
+    const lines = [];
+    lines.push(`<div><b>Автор работы:</b> ${isAuthor ? "Да" : "Нет"}</div>`);
+    if (!isAuthor) lines.push(`<div><b>Знаете автора/объединение:</b> ${know}</div>`);
+    lines.push(`<div><b>Имя/псевдоним:</b> ${escapeHtml(who || "—")}</div>`);
+    lines.push(`<div><b>Адрес:</b> ${escapeHtml([okrug, street, house].filter(Boolean).join(", "))}</div>`);
+    lines.push(`<div><b>Медиум:</b> ${escapeHtml(medium)}</div>`);
+    lines.push(`<div><b>Фото (дата):</b> ${escapeHtml(photoDate)}</div>`);
+    lines.push(`<div><b>Объект существует:</b> ${escapeHtml(exists)}</div>`);
+
+    if (isAuthor) {
+      lines.push(`<div><b>Материалы:</b> ${escapeHtml(val("materials") || "—")}</div>`);
+      lines.push(`<div><b>Время производства:</b> ${escapeHtml(val("prodTime") || "—")}</div>`);
+      const f = document.getElementById("stagesFile");
+      lines.push(`<div><b>Этапы:</b> ${f && f.files && f.files.length ? escapeHtml(f.files[0].name) : "—"}</div>`);
+    }
+
+    const fb = val("feedback");
+    lines.push(`<div><b>Впечатление:</b> ${escapeHtml(fb || "—")}</div>`);
+
+    box.innerHTML = lines.join("\n");
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- Submit ----------
+  const submitBtn = document.getElementById("submitBtn");
+  const submitHint = document.getElementById("submitHint");
+
+  async function submit() {
+    // добавление разрешено и вне Telegram
+    submitBtn.disabled = true;
+    submitHint.textContent = "Отправляем…";
+
+    const isAuthor = state.isAuthor === true;
+
+    const street = val("street");
+    const house  = val("house");
+    const okrug  = val("okrug");
+    const address = [okrug, street, house].filter(Boolean).join(", ");
+
+    const authorNickname = isAuthor ? val("authorName") : (val("artistName") || "неизвестно");
+
+    const extra = {
+      is_author: isAuthor,
+      know_artist: isAuthor ? null : state.knowArtist,
+      artist_name: isAuthor ? null : (val("artistName") || null),
+      author_name: isAuthor ? (val("authorName") || null) : null,
+      okrug,
+      street,
+      house,
+      photo_date: val("photoDate"),
+      exists: val("exists"),
+      description: val("description"),
+      feedback: val("feedback"),
+    };
+
+    const fd = new FormData();
+    fd.append("initData", tg ? (tg.initData || "") : "");
+
+    fd.append("is_own_work", String(isAuthor)); // server parses bool-like
+    fd.append("author_nickname", authorNickname);
+    fd.append("city", "Москва");
+    fd.append("district", okrug); // keep old field name
+    fd.append("street_and_house", `${street}, ${house}`);
+    fd.append("work_type", val("medium"));
+    fd.append("material", isAuthor ? val("materials") : "");
+    fd.append("production_time", isAuthor ? val("prodTime") : "");
+    fd.append("emotion", ""); // legacy
+    fd.append("extra", JSON.stringify(extra));
+
+    const lat = val("lat"); const lon = val("lon");
+    if (lat && lon) { fd.append("lat", lat); fd.append("lon", lon); }
+
+    const photo = document.getElementById("photo");
+    fd.append("photo", photo.files[0]);
+
+    const stages = document.getElementById("stagesFile");
+    if (stages && stages.files && stages.files.length) {
+      fd.append("video", stages.files[0]); // legacy single file field
+    }
+
+    try {
+      const resp = await fetch("/api/submit", { method: "POST", body: fd });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.ok === false) throw new Error(data.error || "Ошибка отправки");
+      submitHint.textContent = "✅ Отправлено! Спасибо.";
+      // reset
+      setTimeout(() => { location.reload(); }, 900);
+    } catch (e) {
+      submitBtn.disabled = false;
+      submitHint.textContent = "❌ " + (e && e.message ? e.message : "Ошибка");
+    }
+  }
+
+  submitBtn?.addEventListener("click", submit);
+
+  // ---------- Map ----------
+  let mapInited = false;
+  let map, placemarkClick;
+  let pendingCenter = null; // { lat, lon } — центр, который нужно поставить после инициализации карты
+
+  function ensureMap() {
+    if (mapInited) return;
+    if (!window.ymaps) return;
+
+    mapInited = true;
+    ymaps.ready(async () => {
+      map = new ymaps.Map("map", { center: [55.751244, 37.618423], zoom: 11 });
+      // если до загрузки карты уже искали адрес — применяем центр
+if (pendingCenter) {
+  const { lat, lon } = pendingCenter;
+  try {
+    map.setCenter([lat, lon], 16);
+    if (placemarkClick) map.geoObjects.remove(placemarkClick);
+    placemarkClick = new ymaps.Placemark([lat, lon]);
+    map.geoObjects.add(placemarkClick);
+  } catch(e) {}
+  pendingCenter = null;
+}
+      map.events.add("click", (e) => {
+        const coords = e.get("coords");
+        document.getElementById("lat").value = coords[0].toFixed(6);
+        document.getElementById("lon").value = coords[1].toFixed(6);
+        setTab("add");
+        showStep(3);
+      });
+
+      await loadMarkers();
+    });
+  }
+
+  async function loadMarkers() {
+    try {
+      const resp = await fetch("/api/arts");
+      const items = await resp.json();
+      items.forEach(it => {
+        const pm = new ymaps.Placemark([it.lat, it.lon], {
+          balloonContent: `
+  <div style="max-width:260px; line-height:1.35">
+    <div style="font-weight:700; margin-bottom:6px;">
+      ${escapeHtml(it.work_type || "Объект")}
+    </div>
+
+    ${it.author_nickname ? `<div><b>Автор/псевдоним:</b> ${escapeHtml(it.author_nickname)}</div>` : ""}
+
+    ${it.address ? `<div><b>Адрес:</b> ${escapeHtml(it.address)}</div>` : ""}
+
+    ${it.street_and_house ? `<div><b>Улица/дом:</b> ${escapeHtml(it.street_and_house)}</div>` : ""}
+    ${it.district ? `<div><b>Округ:</b> ${escapeHtml(it.district)}</div>` : ""}
+    ${it.city ? `<div><b>Город:</b> ${escapeHtml(it.city)}</div>` : ""}
+
+    ${(it.is_own_work !== null && it.is_own_work !== undefined)
+      ? `<div><b>Своя работа:</b> ${it.is_own_work ? "да" : "нет"}</div>`
+      : ""}
+
+    ${it.material ? `<div><b>Материалы:</b> ${escapeHtml(it.material)}</div>` : ""}
+    ${it.production_time ? `<div><b>Время:</b> ${escapeHtml(it.production_time)}</div>` : ""}
+
+    ${it.extra && it.extra.photo_date ? `<div><b>Дата фото:</b> ${escapeHtml(it.extra.photo_date)}</div>` : ""}
+    ${it.extra && it.extra.exists ? `<div><b>Существует:</b> ${escapeHtml(it.extra.exists)}</div>` : ""}
+
+    ${it.extra && it.extra.description ? `<div style="margin-top:6px;"><b>Описание:</b><br/>${escapeHtml(it.extra.description)}</div>` : ""}
+
+    ${it.photo_url ? `<img src="${it.photo_url}" style="max-width:240px;margin-top:8px;border-radius:10px;border:1px solid #eee" />` : ""}
+
+    ${it.video_url ? `<div style="margin-top:8px;"><a href="${escapeHtml(it.video_url)}" target="_blank" rel="noopener">Открыть этапы (файл)</a></div>` : ""}
+
+    ${(it.extra && (it.extra.author_name || it.extra.artist_name))
+      ? `<div style="margin-top:8px; color:#666; font-size:12px;">
+          ${it.extra.author_name ? `author_name: ${escapeHtml(it.extra.author_name)}` : ""}
+          ${it.extra.artist_name ? `${it.extra.author_name ? "<br/>" : ""}artist_name: ${escapeHtml(it.extra.artist_name)}` : ""}
+        </div>`
+      : ""}
+   </div>
+`
+          // 👇 закрываем объект и вызов Placemark
+        });
+        map.geoObjects.add(pm);
+      });
+    } catch (e) {}
+  }
+  // ---------- Address search (server geocoder) ----------
+document.getElementById("btnAddrFind")?.addEventListener("click", async () => {
+  const q = (document.getElementById("addrQuery")?.value || "").trim();
+  if (!q) return;
+
+  try {
+    const resp = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+    const data = await resp.json().catch(() => ({}));
+
+    if (!resp.ok || !data.found) {
+      throw new Error(data.error || "Адрес не найден");
+    }
+
+    const lat = Number(data.lat);
+    const lon = Number(data.lon);
+
+    // подставляем в форму
+    document.getElementById("lat").value = lat.toFixed(6);
+    document.getElementById("lon").value = lon.toFixed(6);
+
+    // центрируем карту (если карта уже готова), иначе запомним и применим при инициализации
+    if (mapInited && map) {
+      map.setCenter([lat, lon], 16);
+      if (placemarkClick) map.geoObjects.remove(placemarkClick);
+      placemarkClick = new ymaps.Placemark([lat, lon]);
+      map.geoObjects.add(placemarkClick);
+    } else {
+      pendingCenter = { lat, lon };
+      setTab("map");
+      ensureMap();
+    }
+
+    // можно сразу прыгнуть в шаг с координатами, если хочешь:
+    // setTab("add"); showStep(3);
+
+  } catch (e) {
+    // при желании можешь вывести текст ошибки куда-то в UI
+    console.error("geocode error:", e);
+  }
+});
+
+  // ---------- Mine ----------
+  async function loadMine() {
+    const wrap = document.getElementById("mineList");
+    if (!wrap) return;
+    wrap.innerHTML = '<div class="muted">Загрузка…</div>';
+
+    try {
+      const resp = await fetch("/api/submissions?limit=30");
+      const items = await resp.json();
+      if (!Array.isArray(items) || items.length === 0) {
+        wrap.innerHTML = '<div class="muted">Пока пусто.</div>';
+        return;
+      }
+      wrap.innerHTML = items.map(it => {
+  // extra может быть строкой или объектом
+  let ex = it.extra;
+  if (typeof ex === "string") {
+    try { ex = JSON.parse(ex); } catch(e) { ex = {}; }
+  }
+  ex = ex || {};
+
+  const lines = [];
+  lines.push(`<div><b>${escapeHtml(it.work_type || "Объект")}</b></div>`);
+
+  lines.push(`<div class="muted"><b>Автор/псевдоним:</b> ${escapeHtml(it.author_nickname || ex.author_name || ex.artist_name || "неизвестно")}</div>`);
+  lines.push(`<div class="muted"><b>Адрес:</b> ${escapeHtml(it.address || [it.city, it.district, it.street_and_house].filter(Boolean).join(", ") || "—")}</div>`);
+
+  if (ex.photo_date) lines.push(`<div class="muted"><b>Дата фото:</b> ${escapeHtml(ex.photo_date)}</div>`);
+  if (ex.exists) lines.push(`<div class="muted"><b>Объект существует:</b> ${escapeHtml(ex.exists)}</div>`);
+
+  if (it.material) lines.push(`<div class="muted"><b>Материалы:</b> ${escapeHtml(it.material)}</div>`);
+  if (it.production_time) lines.push(`<div class="muted"><b>Время производства:</b> ${escapeHtml(it.production_time)}</div>`);
+
+  if (ex.description) lines.push(`<div class="muted"><b>Описание:</b> ${escapeHtml(ex.description)}</div>`);
+  if (ex.feedback) lines.push(`<div class="muted"><b>Впечатление:</b> ${escapeHtml(ex.feedback)}</div>`);
+
+  if (it.created_at) lines.push(`<div class="muted"><b>Создано:</b> ${escapeHtml(it.created_at)}</div>`);
+
+  if (it.photo_url) lines.push(`<img src="${it.photo_url}" style="max-width:100%;margin-top:8px;border-radius:12px" />`);
+  if (it.video_url) lines.push(`<div class="muted" style="margin-top:6px;"><a href="${it.video_url}" target="_blank">Открыть этапы/видео</a></div>`);
+
+  return `<div class="mini">${lines.join("")}</div>`;
+}).join("");
+    } catch (e) {
+      wrap.innerHTML = '<div class="muted">Не удалось загрузить.</div>';
+    }
+  }
+
+  // default
+  setTab("add");
+  showStep(1);
+  validateStep1();
+})();
+</script>
+</body>
+</html>
