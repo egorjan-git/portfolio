@@ -1,7 +1,9 @@
 .DS_Store
 __MACOSX/
-.idea/
 __pycache__/
+*.py[cod]
 venv/
-*.pyc
 .env
+.idea/
+.vscode/
+*.log
