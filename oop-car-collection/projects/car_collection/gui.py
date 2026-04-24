@@ -166,7 +166,6 @@ class CatalogGUI(tk.Tk):
         pr = d.get("price", "").strip()
         car.price = None if pr == "" else float(pr)
         car.notes = d.get("notes", "")
-        # change type -> recreate instance
         new_type = CarType(d["type"])
         if new_type != car.car_type:
             new_car = _make_car_from_form(d)
