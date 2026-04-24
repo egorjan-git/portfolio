@@ -24,7 +24,6 @@
   --btnSecondaryBorder:#dddddd;
 }
 
-/* применяем переменные */
 body{
   background: var(--bg);
   color: var(--text);
@@ -111,7 +110,6 @@ button.secondary{
     .item img, .item video { width:100%; border-radius:12px; border:1px solid #eee; }
     .item video { margin-top:10px; }
   
-  /* multi-step: показываем только активный экран */
   .step{display:none;}
   .step.active{display:block;}
 </style>
@@ -125,7 +123,6 @@ button.secondary{
   <div class="tab" id="tabMine">Мои заявки</div>
 </div>
 
-<!-- ADD -->
 <div id="viewAdd" class="view">
   <div class="card">
     <h2>Добавить объект</h2>
@@ -325,7 +322,6 @@ button.secondary{
     try { tg.expand(); } catch(e) {}
   }
 
-  // 👇 ВСТАВЬ ЭТОТ БЛОК СЮДА
   function applyTelegramTheme() {
     if (!tg) return;
     const p = tg.themeParams || {};
@@ -353,11 +349,9 @@ button.secondary{
 
   applyTelegramTheme();
   if (tg) tg.onEvent("themeChanged", applyTelegramTheme);
-  // 👆 КОНЕЦ ВСТАВКИ
 
   const hasTelegram = true;
 
-  // ---------- Tabs ----------
   const tabs = {
     add: document.getElementById("tabAdd"),
     map: document.getElementById("tabMap"),
@@ -380,7 +374,6 @@ button.secondary{
   tabs.map?.addEventListener("click", () => setTab("map"));
   tabs.mine?.addEventListener("click", () => setTab("mine"));
 
-  // ---------- Stepper ----------
   const steps = Array.from(document.querySelectorAll('#viewAdd .step'));
   let step = 1;
   function showStep(n) {
@@ -390,13 +383,11 @@ button.secondary{
     if (n === 6) renderReview();
   }
 
-  // ---------- State ----------
   const state = {
     isAuthor: null,
     knowArtist: null,
   };
 
-  // ---------- Elements ----------
   const tgHint = document.getElementById("tgHint");
   const next1 = document.getElementById("next1");
 
@@ -417,13 +408,12 @@ button.secondary{
     noBtn.classList.toggle("secondary", value !== false);
   }
 
-  tgHint.style.display = "none"; // скрываем предупреждение всегда
+  tgHint.style.display = "none"; 
 
  function validateStep1() {
   next1.disabled = !((state.isAuthor === true || state.isAuthor === false));
 }
 
-  // default choice (variant 1): preselect 'Да'
   state.isAuthor = true;
   setButtonPair(btnIsAuthorYes, btnIsAuthorNo, true);
   validateStep1();
@@ -444,7 +434,6 @@ button.secondary{
 
 
   next1?.addEventListener("click", () => {
-    // show proper blocks
     blockAuthor.style.display = state.isAuthor ? "" : "none";
     blockNotAuthor.style.display = !state.isAuthor ? "" : "none";
     authorOnly.style.display = state.isAuthor ? "" : "none";
@@ -457,7 +446,6 @@ button.secondary{
   document.getElementById("back5")?.addEventListener("click", () => showStep(4));
   document.getElementById("back6")?.addEventListener("click", () => showStep(5));
 
-  // Know artist
   btnKnowYes?.addEventListener("click", () => {
     state.knowArtist = true;
     setButtonPair(btnKnowYes, btnKnowNo, true);
@@ -471,11 +459,9 @@ button.secondary{
     if (el) el.value = "";
   });
 
-  // Next buttons
   function val(id){ const el=document.getElementById(id); return el ? (el.value || "").trim() : ""; }
 
   document.getElementById("next2")?.addEventListener("click", () => {
-    // minimal validation: address
     const street = val("street");
     const house = val("house");
     if (!street || !house) { submitHint.textContent = "Укажите улицу и номер дома (насколько можете)."; return; }
@@ -494,7 +480,6 @@ button.secondary{
   document.getElementById("next4")?.addEventListener("click", () => showStep(5));
   document.getElementById("next5")?.addEventListener("click", () => showStep(6));
 
-  // Review
   function renderReview() {
     const box = document.getElementById("reviewBox");
     if (!box) return;
@@ -536,12 +521,10 @@ button.secondary{
     return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  // ---------- Submit ----------
   const submitBtn = document.getElementById("submitBtn");
   const submitHint = document.getElementById("submitHint");
 
   async function submit() {
-    // добавление разрешено и вне Telegram
     submitBtn.disabled = true;
     submitHint.textContent = "Отправляем…";
 
@@ -571,15 +554,15 @@ button.secondary{
     const fd = new FormData();
     fd.append("initData", tg ? (tg.initData || "") : "");
 
-    fd.append("is_own_work", String(isAuthor)); // server parses bool-like
+    fd.append("is_own_work", String(isAuthor)); 
     fd.append("author_nickname", authorNickname);
     fd.append("city", "Москва");
-    fd.append("district", okrug); // keep old field name
+    fd.append("district", okrug); 
     fd.append("street_and_house", `${street}, ${house}`);
     fd.append("work_type", val("medium"));
     fd.append("material", isAuthor ? val("materials") : "");
     fd.append("production_time", isAuthor ? val("prodTime") : "");
-    fd.append("emotion", ""); // legacy
+    fd.append("emotion", ""); 
     fd.append("extra", JSON.stringify(extra));
 
     const lat = val("lat"); const lon = val("lon");
@@ -590,7 +573,7 @@ button.secondary{
 
     const stages = document.getElementById("stagesFile");
     if (stages && stages.files && stages.files.length) {
-      fd.append("video", stages.files[0]); // legacy single file field
+      fd.append("video", stages.files[0]); 
     }
 
     try {
@@ -598,7 +581,6 @@ button.secondary{
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || data.ok === false) throw new Error(data.error || "Ошибка отправки");
       submitHint.textContent = "✅ Отправлено! Спасибо.";
-      // reset
       setTimeout(() => { location.reload(); }, 900);
     } catch (e) {
       submitBtn.disabled = false;
@@ -608,10 +590,9 @@ button.secondary{
 
   submitBtn?.addEventListener("click", submit);
 
-  // ---------- Map ----------
   let mapInited = false;
   let map, placemarkClick;
-  let pendingCenter = null; // { lat, lon } — центр, который нужно поставить после инициализации карты
+  let pendingCenter = null; 
 
   function ensureMap() {
     if (mapInited) return;
@@ -620,7 +601,6 @@ button.secondary{
     mapInited = true;
     ymaps.ready(async () => {
       map = new ymaps.Map("map", { center: [55.751244, 37.618423], zoom: 11 });
-      // если до загрузки карты уже искали адрес — применяем центр
 if (pendingCenter) {
   const { lat, lon } = pendingCenter;
   try {
@@ -687,13 +667,11 @@ if (pendingCenter) {
       : ""}
    </div>
 `
-          // 👇 закрываем объект и вызов Placemark
         });
         map.geoObjects.add(pm);
       });
     } catch (e) {}
   }
-  // ---------- Address search (server geocoder) ----------
 document.getElementById("btnAddrFind")?.addEventListener("click", async () => {
   const q = (document.getElementById("addrQuery")?.value || "").trim();
   if (!q) return;
@@ -709,11 +687,9 @@ document.getElementById("btnAddrFind")?.addEventListener("click", async () => {
     const lat = Number(data.lat);
     const lon = Number(data.lon);
 
-    // подставляем в форму
     document.getElementById("lat").value = lat.toFixed(6);
     document.getElementById("lon").value = lon.toFixed(6);
 
-    // центрируем карту (если карта уже готова), иначе запомним и применим при инициализации
     if (mapInited && map) {
       map.setCenter([lat, lon], 16);
       if (placemarkClick) map.geoObjects.remove(placemarkClick);
@@ -725,16 +701,12 @@ document.getElementById("btnAddrFind")?.addEventListener("click", async () => {
       ensureMap();
     }
 
-    // можно сразу прыгнуть в шаг с координатами, если хочешь:
-    // setTab("add"); showStep(3);
 
   } catch (e) {
-    // при желании можешь вывести текст ошибки куда-то в UI
     console.error("geocode error:", e);
   }
 });
 
-  // ---------- Mine ----------
   async function loadMine() {
     const wrap = document.getElementById("mineList");
     if (!wrap) return;
@@ -748,7 +720,6 @@ document.getElementById("btnAddrFind")?.addEventListener("click", async () => {
         return;
       }
       wrap.innerHTML = items.map(it => {
-  // extra может быть строкой или объектом
   let ex = it.extra;
   if (typeof ex === "string") {
     try { ex = JSON.parse(ex); } catch(e) { ex = {}; }
@@ -782,7 +753,6 @@ document.getElementById("btnAddrFind")?.addEventListener("click", async () => {
     }
   }
 
-  // default
   setTab("add");
   showStep(1);
   validateStep1();
