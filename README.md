@@ -6,6 +6,20 @@
 
 ---
 
+### 🔹 Сервис трендов поисковых запросов (search-trends-service)
+
+Высоконагруженный backend-сервис для сбора и ранжирования поисковых запросов в реальном времени.
+
+- асинхронная обработка событий через Kafka
+- расчёт Top-N запросов в скользящем временном окне с использованием Redis
+- нормализация запросов, дедупликация, rate limiting и динамический стоп-лист
+- REST API на FastAPI, метрики Prometheus и запуск через Docker Compose
+- автоматические проверки с pytest, Ruff, mypy и GitHub Actions
+
+👉 Сервис формирует актуальный рейтинг популярных поисковых запросов и устойчив к некорректным событиям и временной недоступности Redis
+
+---
+
 ### 🔹 Telegram Mini App — карта стрит-арта Москвы (street-art-bot)
 
 Приложение для просмотра и добавления объектов стрит-арта на карте.
@@ -63,7 +77,7 @@
 
 ## Технологии
 
-Python, FastAPI, SQL, Pandas, Matplotlib, scikit-learn, Git
+Python, FastAPI, Kafka, Redis, Docker, Docker Compose, Prometheus, pytest, Ruff, mypy, GitHub Actions, uv, SQL, Pandas, Matplotlib, scikit-learn, Git
 
 ---
 
